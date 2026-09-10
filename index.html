@@ -1,4 +1,3 @@
-html
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -21,7 +20,7 @@ footer{text-align:center;padding:35px;color:var(--muted);background:#180f11}
 </style>
 </head>
 <body>
-<header><div class="nav"><div class="logo">📷 Lume Mural</div><button onclick="document.querySelector('#camera').scrollIntoView()"></button></div></header>
+<header><div class="nav"><div class="logo">📷 Lume Mural</div><button onclick="document.querySelector('#camera').scrollIntoView()">Abrir Câmera</button></div></header>
 
 <main>
 <section class="hero">
@@ -34,12 +33,13 @@ footer{text-align:center;padding:35px;color:var(--muted);background:#180f11}
 <div class="card">
 <div class="video">
 <video id="video" autoplay playsinline muted></video>
-<div class="placeholder" id="placeholder">📷<br><br>.</div>
+<div class="placeholder" id="placeholder">📷<br><br>Permita o acesso ou abra a câmera.</div>
 </div>
 <div class="buttons">
 <button id="start">📷 Tirar foto</button>
+<button id="capture" class="outline" disabled>✨ Tirar foto</button>
 </div>
-<div class="permission"><b>Como funciona:</b> ao tocar em “Tira foto”, o navegador ira te redirecionar a sua câmera. Tire sua foto e escolha sua descrição, após isso só adicionar ao mural!! . A câmera só é usada enquanto esta página estiver aberta.</div>
+<div class="permission"><b>Como funciona:</b> Ao clicar em "Tirar foto", se estiver no celular você será direcionado para tirar a foto ou usará a câmera ao vivo no navegador.</div>
 <div id="status" class="status"></div>
 </div>
 
@@ -68,43 +68,106 @@ let stream=null, photo=null;
 
 async function openCamera(){
   if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-    status.textContent='Este navegador não liberou a câmera nesta página. Use a opção de câmera do celular abaixo.';
+    status.textContent='Abrindo câmera do celular...';
     file.click(); return;
   }
   try{
-    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:960}},audio:false});
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:800},height:{ideal:600}},audio:false});
     video.srcObject=stream; placeholder.style.display='none'; capture.disabled=false;
-    start.textContent='✓ Câmera permitida'; status.textContent='Câmera ativada! Agora toque em “Tirar foto”. 📸';
+    start.textContent='✓ Câmera Aberta'; status.textContent='Câmera ativada! Clique em "Tirar foto". 📸';
   }catch(e){
-    status.textContent='A permissão foi negada ou não está disponível. Você pode tentar novamente ou usar a câmera do celular.';
+    status.textContent='Câmera ao vivo indisponível. Abrindo captura...';
     file.click();
   }
 }
+
 function takePhoto(){
-  canvas.width=video.videoWidth||1280; canvas.height=video.videoHeight||960;
+  canvas.width=video.videoWidth||800; canvas.height=video.videoHeight||600;
   canvas.getContext('2d').drawImage(video,0,0,canvas.width,canvas.height);
-  setPhoto(canvas.toDataURL('image/jpeg',.9));
+  setPhoto(canvas.toDataURL('image/jpeg', 0.6));
 }
+
 function setPhoto(data){
-  photo=data; preview.innerHTML='<img src="'+data+'" alt="Foto capturada">'; save.disabled=false;
-  status.textContent='Foto pronta! Escreva uma legenda e coloque no mural. 💗';
+  const img = new Image();
+  img.onload = () => {
+    const cvs = document.createElement('canvas');
+    const max = 600;
+    let w = img.width, h = img.height;
+    if(w > h) { if(w > max) { h *= max/w; w = max; } }
+    else { if(h > max) { w *= max/h; h = max; } }
+    cvs.width = w; cvs.height = h;
+    cvs.getContext('2d').drawImage(img, 0, 0, w, h);
+    
+    photo = cvs.toDataURL('image/jpeg', 0.6);
+    preview.innerHTML='<img src="'+photo+'" alt="Foto capturada">'; 
+    save.disabled=false;
+    status.textContent='Foto pronta! Escreva uma legenda e coloque no mural. 💗';
+  };
+  img.src = data;
 }
-file.addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const reader=new FileReader();reader.onload=()=>setPhoto(reader.result);reader.readAsDataURL(f)});
+
+file.addEventListener('change', e => {
+  const f = e.target.files[0];
+  if(!f) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    setPhoto(reader.result);
+    file.value = ''; // Reseta para permitir escolher a mesma imagem ou tirar outra seguida
+  };
+  reader.readAsDataURL(f);
+});
+
 function clean(){
-  photo=null; preview.textContent='A foto aparecerá aqui 💗'; save.disabled=true; caption.value='';
+  photo=null; preview.textContent='A foto aparecerá aqui 💗'; save.disabled=true; caption.value=''; file.value='';
 }
+
 function esc(s){return s.replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+
 function load(){
-  const arr=JSON.parse(localStorage.getItem('lumePhotos')||'[]'); mural.innerHTML='';
-  if(!arr.length){mural.innerHTML='<div class="empty">Ainda não há fotos.<br><br>Tire a primeira foto e coloque no mural! 📸</div>';return}
-  arr.forEach((p,i)=>{const el=document.createElement('article');el.className='photo';el.style.setProperty('--r',[-1.5,1.2,-.8,1.8,.5,-1][i%6]+'deg');el.innerHTML='<img src="'+p.image+'" alt="Foto do mural"><div class="caption">'+esc(p.caption||'Um momento para guardar')+'</div><div class="date">'+new Date(p.date).toLocaleDateString('pt-BR')+'</div>';mural.appendChild(el)})
+  let arr = [];
+  try {
+    arr = JSON.parse(localStorage.getItem('lumePhotos')||'[]');
+  } catch(e) { arr = []; }
+  
+  mural.innerHTML='';
+  if(!arr.length){
+    mural.innerHTML='<div class="empty">Ainda não há fotos.<br><br>Tire a primeira foto e coloque no mural! 📸</div>';
+    return;
+  }
+  arr.forEach((p,i)=>{
+    const el=document.createElement('article');
+    el.className='photo';
+    el.style.setProperty('--r',[-1.5,1.2,-.8,1.8,.5,-1][i%6]+'deg');
+    el.innerHTML='<img src="'+p.image+'" alt="Foto do mural"><div class="caption">'+esc(p.caption||'Um momento para guardar')+'</div><div class="date">'+new Date(p.date).toLocaleDateString('pt-BR')+'</div>';
+    mural.appendChild(el);
+  });
 }
-save.onclick=()=>{if(!photo)return;let arr=JSON.parse(localStorage.getItem('lumePhotos')||'[]');arr.unshift({image:photo,caption:caption.value.trim(),date:new Date().toISOString()});localStorage.setItem('lumePhotos',JSON.stringify(arr.slice(0,30)));load();clean();document.querySelector('.mural-title').scrollIntoView({behavior:'smooth'});status.textContent='Foto adicionada ao mural! 💗'};
-start.onclick=openCamera; capture.onclick=takePhoto; clear.onclick=clean;
+
+save.onclick=()=>{
+  if(!photo) return;
+  let arr = [];
+  try { arr = JSON.parse(localStorage.getItem('lumePhotos')||'[]'); } catch(e){ arr = []; }
+  
+  arr.unshift({image:photo, caption:caption.value.trim(), date:new Date().toISOString()});
+  
+  try {
+    localStorage.setItem('lumePhotos', JSON.stringify(arr.slice(0, 30)));
+  } catch(e) {
+    // Se o storage der erro por limite, reduz para as últimas 10
+    localStorage.setItem('lumePhotos', JSON.stringify(arr.slice(0, 10)));
+  }
+  
+  load();
+  clean();
+  document.querySelector('.mural-title').scrollIntoView({behavior:'smooth'});
+  status.textContent='Foto adicionada ao mural! 💗';
+};
+
+start.onclick=openCamera; 
+capture.onclick=takePhoto; 
+clear.onclick=clean;
 window.addEventListener('beforeunload',()=>stream&&stream.getTracks().forEach(t=>t.stop()));
 load();
 </script>
 </body>
 </html>
-
-```
