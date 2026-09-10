@@ -1,0 +1,111 @@
+html
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lume Mural — Câmera</title>
+<style>
+:root{--bg:#211719;--pink:#e7a0bb;--wine:#a7194d;--cream:#f7e7ea;--muted:#c69daa}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% 0,#3b222a,#211719 45%,#191214);color:var(--cream);font-family:Arial,sans-serif}
+header{padding:16px 22px;border-bottom:1px solid #ffffff12;background:#1d1517ee;position:sticky;top:0;z-index:5}.nav{max-width:1050px;margin:auto;display:flex;align-items:center;justify-content:space-between}.logo{font-weight:800;font-size:1.35rem;color:var(--pink)}
+main{max-width:1050px;margin:auto;padding:55px 20px}.hero{text-align:center;margin-bottom:35px}.badge{display:inline-block;padding:9px 16px;border-radius:30px;background:#8e153d2b;color:var(--pink);font-weight:bold}.hero h1{font-size:clamp(2.6rem,7vw,5rem);line-height:1;margin:18px 0;color:var(--pink);letter-spacing:-2px}.hero p{color:var(--muted);line-height:1.7;max-width:650px;margin:auto}
+.card{background:#302124d9;border:1px solid #e7a0bb20;border-radius:28px;padding:20px;box-shadow:0 20px 55px #0004}.camera{display:grid;grid-template-columns:1.1fr .9fr;gap:20px}
+.video{aspect-ratio:4/3;background:#100c0d;border-radius:20px;overflow:hidden;position:relative}.video video{width:100%;height:100%;object-fit:cover;display:block}.placeholder{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:var(--muted);padding:25px}
+button{border:0;border-radius:30px;padding:14px 20px;background:linear-gradient(135deg,#b52455,#851238);color:white;font-weight:800;font-size:1rem;cursor:pointer}.outline{background:transparent;border:1px solid #b52455;color:var(--pink)}.buttons{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.buttons button{flex:1;min-width:145px}
+input[type=text]{width:100%;padding:15px;border-radius:14px;border:1px solid #e7a0bb30;background:#211719;color:white;outline:none;margin-bottom:12px}.preview{min-height:270px;border:1px dashed #e7a0bb30;border-radius:20px;overflow:hidden;display:grid;place-items:center;color:var(--muted)}.preview img{width:100%;height:100%;object-fit:cover}
+.status{min-height:24px;color:var(--pink);margin-top:10px;font-size:.9rem;line-height:1.5}.permission{margin-top:12px;padding:14px;border-radius:15px;background:#8e153d22;color:var(--muted);font-size:.9rem;line-height:1.5}
+input[type=file]{display:none}.mural-title{text-align:center;color:var(--pink);margin-top:55px}.mural{columns:3 250px;column-gap:22px;margin-top:22px}.photo{break-inside:avoid;background:#f3e9e6;color:#34252a;padding:11px;margin:0 0 22px;box-shadow:0 14px 30px #0005;transform:rotate(var(--r));}.photo img{width:100%;display:block;aspect-ratio:1/1;object-fit:cover}.caption{font-family:Georgia,serif;padding:10px 5px 2px}.date{font-size:.72rem;color:#80646d;padding:0 5px 5px}.empty{color:var(--muted);text-align:center;border:1px dashed #e7a0bb30;border-radius:20px;padding:40px;column-span:all}
+footer{text-align:center;padding:35px;color:var(--muted);background:#180f11}
+@media(max-width:760px){.camera{grid-template-columns:1fr}.hero h1{letter-spacing:-1px}}
+</style>
+</head>
+<body>
+<header><div class="nav"><div class="logo">📷 Lume Mural</div><button onclick="document.querySelector('#camera').scrollIntoView()">Abrir câmera</button></div></header>
+
+<main>
+<section class="hero">
+<div class="badge">✨ Fotos direto pelo site</div>
+<h1>Clique no momento.<br>Guarde a história.</h1>
+<p>Agora o Lume pede a permissão da câmera do seu celular. Você tira a foto aqui mesmo e pode colocá-la no mural.</p>
+</section>
+
+<section id="camera" class="camera">
+<div class="card">
+<div class="video">
+<video id="video" autoplay playsinline muted></video>
+<div class="placeholder" id="placeholder">📷<br><br>Toque em <b>Permitir câmera</b><br>para começar.</div>
+</div>
+<div class="buttons">
+<button id="start">📷 Permitir câmera</button>
+<button id="capture" class="outline" disabled>✨ Tirar foto</button>
+</div>
+<div class="permission"><b>Como funciona:</b> ao tocar em “Permitir câmera”, o navegador mostrará a solicitação de permissão. Escolha <b>Permitir</b>. A câmera só é usada enquanto esta página estiver aberta.</div>
+<div id="status" class="status"></div>
+</div>
+
+<div class="card">
+<input id="caption" type="text" maxlength="70" placeholder="Escreva uma legenda para a foto...">
+<div class="preview" id="preview">A foto aparecerá aqui 💗</div>
+<div class="buttons">
+<button id="save" disabled>💗 Colocar no mural</button>
+<button id="clear" class="outline">Limpar</button>
+</div>
+</div>
+</section>
+
+<section>
+<h2 class="mural-title">Mural de memórias</h2>
+<div class="mural" id="mural"></div>
+</section>
+</main>
+<footer>📷 Lume Mural · Clique no momento, guarde a história.</footer>
+<canvas id="canvas" hidden></canvas>
+<input id="file" type="file" accept="image/*" capture="environment">
+
+<script>
+const video=document.getElementById('video'), canvas=document.getElementById('canvas'), start=document.getElementById('start'), capture=document.getElementById('capture'), save=document.getElementById('save'), clear=document.getElementById('clear'), preview=document.getElementById('preview'), caption=document.getElementById('caption'), status=document.getElementById('status'), placeholder=document.getElementById('placeholder'), mural=document.getElementById('mural'), file=document.getElementById('file');
+let stream=null, photo=null;
+
+async function openCamera(){
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    status.textContent='Este navegador não liberou a câmera nesta página. Use a opção de câmera do celular abaixo.';
+    file.click(); return;
+  }
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:960}},audio:false});
+    video.srcObject=stream; placeholder.style.display='none'; capture.disabled=false;
+    start.textContent='✓ Câmera permitida'; status.textContent='Câmera ativada! Agora toque em “Tirar foto”. 📸';
+  }catch(e){
+    status.textContent='A permissão foi negada ou não está disponível. Você pode tentar novamente ou usar a câmera do celular.';
+    file.click();
+  }
+}
+function takePhoto(){
+  canvas.width=video.videoWidth||1280; canvas.height=video.videoHeight||960;
+  canvas.getContext('2d').drawImage(video,0,0,canvas.width,canvas.height);
+  setPhoto(canvas.toDataURL('image/jpeg',.9));
+}
+function setPhoto(data){
+  photo=data; preview.innerHTML='<img src="'+data+'" alt="Foto capturada">'; save.disabled=false;
+  status.textContent='Foto pronta! Escreva uma legenda e coloque no mural. 💗';
+}
+file.addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const reader=new FileReader();reader.onload=()=>setPhoto(reader.result);reader.readAsDataURL(f)});
+function clean(){
+  photo=null; preview.textContent='A foto aparecerá aqui 💗'; save.disabled=true; caption.value='';
+}
+function esc(s){return s.replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+function load(){
+  const arr=JSON.parse(localStorage.getItem('lumePhotos')||'[]'); mural.innerHTML='';
+  if(!arr.length){mural.innerHTML='<div class="empty">Ainda não há fotos.<br><br>Tire a primeira foto e coloque no mural! 📸</div>';return}
+  arr.forEach((p,i)=>{const el=document.createElement('article');el.className='photo';el.style.setProperty('--r',[-1.5,1.2,-.8,1.8,.5,-1][i%6]+'deg');el.innerHTML='<img src="'+p.image+'" alt="Foto do mural"><div class="caption">'+esc(p.caption||'Um momento para guardar')+'</div><div class="date">'+new Date(p.date).toLocaleDateString('pt-BR')+'</div>';mural.appendChild(el)})
+}
+save.onclick=()=>{if(!photo)return;let arr=JSON.parse(localStorage.getItem('lumePhotos')||'[]');arr.unshift({image:photo,caption:caption.value.trim(),date:new Date().toISOString()});localStorage.setItem('lumePhotos',JSON.stringify(arr.slice(0,30)));load();clean();document.querySelector('.mural-title').scrollIntoView({behavior:'smooth'});status.textContent='Foto adicionada ao mural! 💗'};
+start.onclick=openCamera; capture.onclick=takePhoto; clear.onclick=clean;
+window.addEventListener('beforeunload',()=>stream&&stream.getTracks().forEach(t=>t.stop()));
+load();
+</script>
+</body>
+</html>
+
+```
